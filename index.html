@@ -3,52 +3,69 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Transaction List</title>
+<title>IPFS Transactions</title>
 <style>
   body {
     font-family: Arial, sans-serif;
     margin: 20px;
     background: #f9f9f9;
   }
+
+  h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 25px;
+  }
+
   #searchContainer {
     margin-bottom: 15px;
+    text-align: center;
   }
+
   input[type="text"] {
     padding: 8px;
     width: 300px;
     font-size: 16px;
   }
+
   button {
     padding: 8px 14px;
     font-size: 16px;
     margin-left: 5px;
     cursor: pointer;
   }
+
   #loading {
     display: none;
     margin-left: 10px;
     font-style: italic;
   }
+
   table {
     width: 100%;
     border-collapse: collapse;
     background: white;
   }
+
   th, td {
     border: 1px solid #ddd;
     padding: 12px 10px;
     text-align: left;
   }
+
   th {
     background: #007BFF;
     color: white;
   }
+
   tr:hover {
     background: #f1f1f1;
   }
+
   tr.expanded {
     background: #e7f3ff;
   }
+
   tr.details-row td {
     background: #f9f9f9;
     font-size: 14px;
@@ -56,6 +73,8 @@
 </style>
 </head>
 <body>
+
+<h1>IPFS Transactions</h1>
 
 <div id="searchContainer">
   <input type="text" id="searchInput" placeholder="Enter Transaction ID" />
@@ -183,7 +202,6 @@
     fetchAllTransactions();
   });
 
-  // Load all transactions on page load
   fetchAllTransactions();
 </script>
 
