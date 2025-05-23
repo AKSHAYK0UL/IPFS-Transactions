@@ -8,25 +8,21 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
-      background: #f5f5f5;
-      color: #333;
+      background: #f9f9f9;
     }
     h1 {
-      text-align: center;
+      margin-bottom: 10px;
+    }
+    #searchContainer {
       margin-bottom: 20px;
     }
-    .search-bar {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    input[type="text"] {
-      width: 300px;
+    #searchInput {
       padding: 8px;
+      width: 300px;
       font-size: 16px;
     }
-    button {
+    #searchButton {
       padding: 8px 15px;
-      margin-left: 8px;
       font-size: 16px;
       cursor: pointer;
     }
@@ -34,51 +30,62 @@
       width: 100%;
       border-collapse: collapse;
       background: white;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 5px #ccc;
     }
     th, td {
-      padding: 12px 15px;
-      border-bottom: 1px solid #ddd;
+      border: 1px solid #ddd;
+      padding: 10px;
       text-align: left;
     }
     th {
-      background-color: #007BFF;
+      background: #007bff;
       color: white;
+      user-select: none;
+    }
+    tr.expandable {
+      cursor: pointer;
+      background: #f1f1f1;
+      transition: background-color 0.3s;
     }
     tr.expandable:hover {
-      background-color: #f1f1f1;
-      cursor: pointer;
+      background: #e2eaff;
     }
     tr.details {
+      background: #fafafa;
       display: none;
-      background-color: #eef6ff;
-      font-size: 14px;
     }
     tr.details td {
       border-top: none;
+      font-size: 14px;
+      color: #333;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-
   <h1>Transaction List</h1>
 
-  <div class="search-bar">
+  <div id="searchContainer">
     <input type="text" id="searchInput" placeholder="Search by Transaction ID" />
     <button id="searchButton">Search</button>
-    <button id="resetButton">Reset</button>
+    <button id="clearButton">Clear</button>
   </div>
 
-  <table>
+  <div id="error" class="error"></div>
+
+  <table id="txnTable">
     <thead>
       <tr>
         <th>Transaction ID</th>
         <th>Amount</th>
-        <th>Date</th>
+        <th>Time</th>
       </tr>
     </thead>
-    <tbody id="txnBody">
-      <!-- Transactions will be injected here -->
+    <tbody>
+      <!-- Transactions will be inserted here -->
     </tbody>
   </table>
 
@@ -86,102 +93,126 @@
     const API_ALL = 'https://koul-network-ipfs.onrender.com/transactions';
     const API_BY_ID = 'https://koul-network-ipfs.onrender.com/transaction/';
 
-    const txnBody = document.getElementById('txnBody');
+    const tableBody = document.querySelector('#txnTable tbody');
+    const errorDiv = document.getElementById('error');
+    const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
-    const resetButton = document.getElementById('resetButton');
+    const clearButton = document.getElementById('clearButton');
 
-    // Fetch and render all transactions initially
-    async function fetchAllTransactions() {
-      try {
-        const res = await fetch(API_ALL);
-        if (!res.ok) throw new Error('Failed to fetch all transactions');
-        const data = await res.json();
-        renderTransactions(data);
-      } catch (err) {
-        alert('Failed to load transactions.');
-        console.error(err);
-      }
+    // Function to create a row for the transaction
+    function createTxnRow(txn) {
+      // Main row
+      const tr = document.createElement('tr');
+      tr.classList.add('expandable');
+
+      tr.innerHTML = `
+        <td>${txn.txn_id}</td>
+        <td>${txn.amount}</td>
+        <td>${txn.time}</td>
+      `;
+
+      // Details row (hidden by default)
+      const detailsTr = document.createElement('tr');
+      detailsTr.classList.add('details');
+      detailsTr.innerHTML = `
+        <td colspan="3">
+          <strong>From ID:</strong> ${txn.from_id}<br/>
+          <strong>To ID:</strong> ${txn.to_id}<br/>
+          <strong>CID:</strong> ${txn.cid}<br/>
+          <strong>Nonce:</strong> ${txn.nonce}<br/>
+          <strong>Hash:</strong> ${txn.hash}<br/>
+          <strong>Prev Hash:</strong> ${txn.prev_hash || '(none)'}<br/>
+          <strong>Pool Index:</strong> ${txn.pool_index}<br/>
+          <strong>Index:</strong> ${txn.index}
+        </td>
+      `;
+
+      // Toggle details on click
+      tr.addEventListener('click', () => {
+        if (detailsTr.style.display === 'table-row') {
+          detailsTr.style.display = 'none';
+        } else {
+          detailsTr.style.display = 'table-row';
+        }
+      });
+
+      return [tr, detailsTr];
     }
 
-    // Render transaction rows and expandable details
-    function renderTransactions(transactions) {
-      txnBody.innerHTML = '';
+    // Render a list of transactions (array)
+    function renderTransactions(txns) {
+      tableBody.innerHTML = '';
+      errorDiv.textContent = '';
 
-      if (transactions.length === 0) {
-        txnBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No transactions found.</td></tr>`;
+      if (!txns || txns.length === 0) {
+        errorDiv.textContent = 'No transactions found.';
         return;
       }
 
-      transactions.forEach(txn => {
-        // Main row
-        const row = document.createElement('tr');
-        row.classList.add('expandable');
-
-        row.innerHTML = `
-          <td>${txn.txn_id}</td>
-          <td>${txn.amount}</td>
-          <td>${txn.time}</td>
-        `;
-
-        // Detail row hidden initially
-        const detailRow = document.createElement('tr');
-        detailRow.classList.add('details');
-
-        detailRow.innerHTML = `
-          <td colspan="3">
-            <strong>From:</strong> ${txn.from_id}<br>
-            <strong>To:</strong> ${txn.to_id}<br>
-            <strong>CID:</strong> ${txn.cid}<br>
-            <strong>Nonce:</strong> ${txn.nonce}<br>
-            <strong>Hash:</strong> ${txn.hash}<br>
-            <strong>Prev Hash:</strong> ${txn.prev_hash || 'N/A'}<br>
-            <strong>Index:</strong> ${txn.index}, <strong>Pool Index:</strong> ${txn.pool_index}
-          </td>
-        `;
-
-        // Toggle detail visibility on click
-        row.addEventListener('click', () => {
-          detailRow.style.display = detailRow.style.display === 'table-row' ? 'none' : 'table-row';
-        });
-
-        txnBody.appendChild(row);
-        txnBody.appendChild(detailRow);
+      txns.forEach(txn => {
+        const [mainRow, detailsRow] = createTxnRow(txn);
+        tableBody.appendChild(mainRow);
+        tableBody.appendChild(detailsRow);
       });
     }
 
-    // Search by txn_id
-    searchButton.addEventListener('click', async () => {
-      const txnId = document.getElementById('searchInput').value.trim();
+    // Fetch all transactions on page load
+    function fetchAllTransactions() {
+      errorDiv.textContent = 'Loading transactions...';
+      fetch(API_ALL)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load transactions');
+          return res.json();
+        })
+        .then(data => {
+          renderTransactions(data);
+          errorDiv.textContent = '';
+        })
+        .catch(err => {
+          errorDiv.textContent = err.message;
+          console.error(err);
+        });
+    }
+
+    // Fetch single transaction by ID
+    function fetchTransactionById(txnId) {
       if (!txnId) {
         alert('Please enter a transaction ID');
         return;
       }
 
-      try {
-        const res = await fetch(API_BY_ID + txnId);
-        if (!res.ok) {
-          alert('Transaction not found.');
-          return;
-        }
-        const data = await res.json();
+      errorDiv.textContent = 'Searching transaction...';
 
-        // API returns a single object, but renderTransactions expects an array
-        renderTransactions([data]);
-      } catch (err) {
-        alert('Error fetching transaction.');
-        console.error(err);
-      }
+      fetch(API_BY_ID + txnId)
+        .then(res => {
+          if (!res.ok) throw new Error('Transaction not found');
+          return res.json();
+        })
+        .then(data => {
+          // The API returns an object, wrap in array for renderTransactions
+          renderTransactions([data]);
+          errorDiv.textContent = '';
+        })
+        .catch(err => {
+          errorDiv.textContent = err.message;
+          console.error(err);
+        });
+    }
+
+    // Event listeners
+    searchButton.addEventListener('click', () => {
+      const txnId = searchInput.value.trim();
+      console.log('Searching for transaction ID:', txnId);
+      fetchTransactionById(txnId);
     });
 
-    // Reset search and load all transactions
-    resetButton.addEventListener('click', () => {
-      document.getElementById('searchInput').value = '';
+    clearButton.addEventListener('click', () => {
+      searchInput.value = '';
       fetchAllTransactions();
     });
 
-    // Load all on page load
+    // Initial load
     fetchAllTransactions();
   </script>
-
 </body>
 </html>
