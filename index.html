@@ -1,62 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Transaction Viewer</title>
+  <meta charset="UTF-8">
+  <title>Koul Network Transactions</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f4f6f8;
-      margin: 0;
-      padding: 20px;
+      margin: 30px;
+      background-color: #f9f9f9;
     }
+
     h1 {
       text-align: center;
       color: #333;
     }
-    #searchBar {
-      width: 100%;
-      max-width: 400px;
-      margin: 10px auto;
-      display: block;
-      padding: 10px;
+
+    #searchContainer {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    #searchInput {
+      padding: 8px;
+      width: 300px;
       font-size: 16px;
     }
-    .txn-table {
-      width: 100%;
-      max-width: 1000px;
-      margin: 0 auto;
-      border-collapse: collapse;
-    }
-    .txn-table th, .txn-table td {
-      border: 1px solid #ccc;
-      padding: 10px;
-      text-align: left;
-    }
-    .txn-table th {
-      background-color: #007bff;
-      color: white;
-    }
-    .txn-row {
-      background-color: #fff;
+
+    #searchButton {
+      padding: 8px 16px;
+      font-size: 16px;
       cursor: pointer;
     }
-    .txn-details {
-      display: none;
-      background-color: #f1f1f1;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    .txn-details td {
-      border-top: none;
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    .expandable {
+      cursor: pointer;
+      background-color: #f9f9f9;
+    }
+
+    .details {
+      display: none;
+      background-color: #f0f8ff;
+    }
+
+    .details td {
       font-size: 14px;
+      color: #333;
     }
   </style>
 </head>
 <body>
-  <h1>Koul Network Transactions</h1>
-  <input type="text" id="searchBar" placeholder="Search by Transaction ID..." />
 
-  <table class="txn-table">
+  <h1>Koul Network Transactions</h1>
+
+  <div id="searchContainer">
+    <input type="text" id="searchInput" placeholder="Search by Transaction ID">
+    <button id="searchButton">Search</button>
+    <button id="resetButton">Reset</button>
+  </div>
+
+  <table id="txnTable">
     <thead>
       <tr>
         <th>Transaction ID</th>
@@ -65,72 +84,93 @@
       </tr>
     </thead>
     <tbody id="txnBody">
-      <!-- Transaction rows go here -->
+      <!-- Dynamic rows go here -->
     </tbody>
   </table>
 
   <script>
+    const API_ALL = 'https://koul-network-ipfs.onrender.com/transactions';
+    const API_BY_ID = 'https://koul-network-ipfs.onrender.com/transaction/';
+
     const txnBody = document.getElementById('txnBody');
-    const searchBar = document.getElementById('searchBar');
+    const searchButton = document.getElementById('searchButton');
+    const resetButton = document.getElementById('resetButton');
 
     async function fetchAllTransactions() {
-      const response = await fetch("https://koul-network-ipfs.onrender.com/transactions");
-      const data = await response.json();
-      renderTransactions(data);
-    }
-
-    async function searchTransaction(txnId) {
-      const response = await fetch(`https://koul-network-ipfs.onrender.com/transaction/${txnId}`);
-      if (response.ok) {
-        const data = await response.json();
-        renderTransactions([data]);
-      } else {
-        txnBody.innerHTML = `<tr><td colspan="3">Transaction not found.</td></tr>`;
+      try {
+        const res = await fetch(API_ALL);
+        const data = await res.json();
+        renderTransactions(data);
+      } catch (err) {
+        alert("Failed to load transactions.");
+        console.error(err);
       }
     }
 
     function renderTransactions(transactions) {
       txnBody.innerHTML = '';
+
       transactions.forEach(txn => {
         const row = document.createElement('tr');
-        row.className = 'txn-row';
+        row.classList.add('expandable');
+
         row.innerHTML = `
           <td>${txn.txn_id}</td>
           <td>${txn.amount}</td>
           <td>${txn.time}</td>
         `;
-        const details = document.createElement('tr');
-        details.className = 'txn-details';
-        details.innerHTML = `
+
+        const detailRow = document.createElement('tr');
+        detailRow.classList.add('details');
+
+        detailRow.innerHTML = `
           <td colspan="3">
-            <strong>From:</strong> ${txn.from_id}<br/>
-            <strong>To:</strong> ${txn.to_id}<br/>
-            <strong>CID:</strong> ${txn.cid}<br/>
-            <strong>Nonce:</strong> ${txn.nonce}<br/>
-            <strong>Hash:</strong> ${txn.hash}<br/>
-            <strong>Pool Index:</strong> ${txn.pool_index}<br/>
-            <strong>Prev Hash:</strong> ${txn.prev_hash || 'N/A'}
+            <strong>From:</strong> ${txn.from_id}<br>
+            <strong>To:</strong> ${txn.to_id}<br>
+            <strong>CID:</strong> ${txn.cid}<br>
+            <strong>Nonce:</strong> ${txn.nonce}<br>
+            <strong>Hash:</strong> ${txn.hash}<br>
+            <strong>Prev Hash:</strong> ${txn.prev_hash || 'N/A'}<br>
+            <strong>Index:</strong> ${txn.index}, <strong>Pool Index:</strong> ${txn.pool_index}
           </td>
         `;
+
         row.addEventListener('click', () => {
-          details.style.display = details.style.display === 'table-row' ? 'none' : 'table-row';
+          detailRow.style.display = detailRow.style.display === 'table-row' ? 'none' : 'table-row';
         });
+
         txnBody.appendChild(row);
-        txnBody.appendChild(details);
+        txnBody.appendChild(detailRow);
       });
     }
 
-    searchBar.addEventListener('input', () => {
-      const value = searchBar.value.trim();
-      if (value.length === 24) {
-        searchTransaction(value);
-      } else if (value === '') {
-        fetchAllTransactions();
+    searchButton.addEventListener('click', async () => {
+      const txnId = document.getElementById('searchInput').value.trim();
+      if (!txnId) {
+        alert("Please enter a transaction ID");
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BY_ID + txnId);
+        if (!res.ok) throw new Error("Not found");
+
+        const data = await res.json();
+        renderTransactions([data]);
+      } catch (err) {
+        alert("Transaction not found or error occurred.");
+        console.error(err);
       }
     });
 
-    // Initial fetch
+    resetButton.addEventListener('click', () => {
+      document.getElementById('searchInput').value = '';
+      fetchAllTransactions();
+    });
+
+    // Initial load
     fetchAllTransactions();
   </script>
+
 </body>
 </html>
