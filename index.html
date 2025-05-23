@@ -1,81 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Koul Network Transactions</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Transaction List</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 30px;
-      background-color: #f9f9f9;
-    }
-
-    h1 {
-      text-align: center;
+      margin: 20px;
+      background: #f5f5f5;
       color: #333;
     }
-
-    #searchContainer {
+    h1 {
       text-align: center;
       margin-bottom: 20px;
     }
-
-    #searchInput {
-      padding: 8px;
+    .search-bar {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
       width: 300px;
+      padding: 8px;
       font-size: 16px;
     }
-
-    #searchButton {
-      padding: 8px 16px;
+    button {
+      padding: 8px 15px;
+      margin-left: 8px;
       font-size: 16px;
       cursor: pointer;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
-      background-color: #fff;
+      background: white;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-
     th, td {
-      padding: 12px;
-      border: 1px solid #ddd;
+      padding: 12px 15px;
+      border-bottom: 1px solid #ddd;
       text-align: left;
     }
-
     th {
-      background-color: #f2f2f2;
+      background-color: #007BFF;
+      color: white;
     }
-
-    .expandable {
+    tr.expandable:hover {
+      background-color: #f1f1f1;
       cursor: pointer;
-      background-color: #f9f9f9;
     }
-
-    .details {
+    tr.details {
       display: none;
-      background-color: #f0f8ff;
-    }
-
-    .details td {
+      background-color: #eef6ff;
       font-size: 14px;
-      color: #333;
+    }
+    tr.details td {
+      border-top: none;
     }
   </style>
 </head>
 <body>
 
-  <h1>Koul Network Transactions</h1>
+  <h1>Transaction List</h1>
 
-  <div id="searchContainer">
-    <input type="text" id="searchInput" placeholder="Search by Transaction ID">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by Transaction ID" />
     <button id="searchButton">Search</button>
     <button id="resetButton">Reset</button>
   </div>
 
-  <table id="txnTable">
+  <table>
     <thead>
       <tr>
         <th>Transaction ID</th>
@@ -84,7 +78,7 @@
       </tr>
     </thead>
     <tbody id="txnBody">
-      <!-- Dynamic rows go here -->
+      <!-- Transactions will be injected here -->
     </tbody>
   </table>
 
@@ -96,21 +90,30 @@
     const searchButton = document.getElementById('searchButton');
     const resetButton = document.getElementById('resetButton');
 
+    // Fetch and render all transactions initially
     async function fetchAllTransactions() {
       try {
         const res = await fetch(API_ALL);
+        if (!res.ok) throw new Error('Failed to fetch all transactions');
         const data = await res.json();
         renderTransactions(data);
       } catch (err) {
-        alert("Failed to load transactions.");
+        alert('Failed to load transactions.');
         console.error(err);
       }
     }
 
+    // Render transaction rows and expandable details
     function renderTransactions(transactions) {
       txnBody.innerHTML = '';
 
+      if (transactions.length === 0) {
+        txnBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No transactions found.</td></tr>`;
+        return;
+      }
+
       transactions.forEach(txn => {
+        // Main row
         const row = document.createElement('tr');
         row.classList.add('expandable');
 
@@ -120,6 +123,7 @@
           <td>${txn.time}</td>
         `;
 
+        // Detail row hidden initially
         const detailRow = document.createElement('tr');
         detailRow.classList.add('details');
 
@@ -135,6 +139,7 @@
           </td>
         `;
 
+        // Toggle detail visibility on click
         row.addEventListener('click', () => {
           detailRow.style.display = detailRow.style.display === 'table-row' ? 'none' : 'table-row';
         });
@@ -144,31 +149,37 @@
       });
     }
 
+    // Search by txn_id
     searchButton.addEventListener('click', async () => {
       const txnId = document.getElementById('searchInput').value.trim();
       if (!txnId) {
-        alert("Please enter a transaction ID");
+        alert('Please enter a transaction ID');
         return;
       }
 
       try {
         const res = await fetch(API_BY_ID + txnId);
-        if (!res.ok) throw new Error("Not found");
-
+        if (!res.ok) {
+          alert('Transaction not found.');
+          return;
+        }
         const data = await res.json();
+
+        // API returns a single object, but renderTransactions expects an array
         renderTransactions([data]);
       } catch (err) {
-        alert("Transaction not found or error occurred.");
+        alert('Error fetching transaction.');
         console.error(err);
       }
     });
 
+    // Reset search and load all transactions
     resetButton.addEventListener('click', () => {
       document.getElementById('searchInput').value = '';
       fetchAllTransactions();
     });
 
-    // Initial load
+    // Load all on page load
     fetchAllTransactions();
   </script>
 
